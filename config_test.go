@@ -19,7 +19,7 @@ func TestConfig(t *testing.T) {
 	st.Expect(t, config.Instances[0].Address, "foo.com")
 	st.Expect(t, config.Instances[1].Address, "bar.com")
 
-	// Check Consul defaults
+	// Check Consul defaults in child instances
 	foo := config.Instances[0]
 	st.Expect(t, foo.Token, "")
 	st.Expect(t, foo.Datacenter, "")

@@ -16,7 +16,7 @@ type client struct {
 // NewClient returns an implementation of the Client interface expecting a fully
 // setup Consul Client.
 func NewClient(c *consul.Config) Client {
-	cli, _ := consul.NewClient(c)
+	cli, _ := consul.NewClient(&*c)
 	return &client{consul: cli}
 }
 

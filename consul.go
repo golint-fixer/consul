@@ -29,7 +29,7 @@ var (
 // Consul is a wrapper around the Consul API.
 type Consul struct {
 	// Mutex provides a struct mutex to prevent data races.
-	sync.Mutex
+	sync.RWMutex
 
 	// quit is used internally to open/close the Consul servers update goroutine.
 	quit chan bool
@@ -70,18 +70,21 @@ func (c *Consul) UpdateNodes() ([]string, error) {
 	var retries int
 	var entries []*consul.ServiceEntry
 
+	// Fetch Consul service's nodes retrying using the configured strategy
 	err := NewRetrier(c.Retrier).Run(func() error {
 		var err error
 		config, more := c.nextConsulServer(retries)
 		if !more {
 			retries = 0
 		}
-		client := NewClient(config)
+		retries++
 
+		client := NewClient(config)
 		entries, _, err = client.Health(c.Config.Service, c.Config.Tag, c.Config.QueryOptions)
 		return err
 	})
 
+	// TODO: use custom nodes map function
 	return mapNodes(entries), err
 }
 
@@ -103,7 +106,7 @@ func (c *Consul) updateInterval(interval time.Duration) {
 			return
 		default:
 			nodes, err := c.UpdateNodes()
-			if err != nil || nodes == nil {
+			if err != nil || len(nodes) == 0 {
 				// TODO: handle error
 			}
 
@@ -117,22 +120,31 @@ func (c *Consul) updateInterval(interval time.Duration) {
 
 // GetNodes returns a list of server nodes hostnames for the configured service.
 func (c *Consul) GetNodes() ([]string, error) {
-	// Wait until nodes are available.
+	// Wait until Consul nodes are available.
 	// TODO: consider using a custom channel or WaitGroup
-	loops := 0
-	for c.nodes == nil {
-		if loops > 100 { // Stop after 5 seconds. This should be configurable
+	var loops int
+	for {
+		if loops > 50 { // Stop after 5 seconds. This should be configurable
 			return nil, ErrDiscoveryTimeout
 		}
+
+		c.RLock()
+		if len(c.nodes) > 0 {
+			c.RUnlock()
+			break
+		}
+
 		loops++
+		c.RUnlock()
 		time.Sleep(DefaultWaitInterval)
 	}
 
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	return c.nodes, nil
 }
 
+// getTargetHost returns the next target host available with optional balancing
 func (c *Consul) getTargetHost(nodes []string) (string, error) {
 	if c.Balancer == nil {
 		return nodes[0], nil

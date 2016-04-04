@@ -36,10 +36,6 @@ const consulResponse = `
 func TestClient(t *testing.T) {
 	defer gock.Off()
 
-	config := consul.DefaultConfig()
-	config.Address = "demo.consul.io"
-	gock.InterceptClient(config.HttpClient)
-
 	gock.New("http://demo.consul.io").
 		Get("/v1/health/service/web").
 		Reply(200).
@@ -50,6 +46,10 @@ func TestClient(t *testing.T) {
 		Get("/").
 		Reply(200).
 		BodyString("hello world")
+
+	config := consul.DefaultConfig()
+	config.Address = "demo.consul.io"
+	gock.InterceptClient(config.HttpClient)
 
 	client := NewClient(config)
 	entries, _, err := client.Health("web", "", nil)

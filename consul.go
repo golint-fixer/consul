@@ -17,8 +17,11 @@ var (
 	// DefaultBalancer stores the roundrobin balancer used by default.
 	DefaultBalancer = balancer.DefaultBalancer
 
-	// DefaultWaitTimeout defines the wait interval for servers become available.
-	DefaultWaitInterval = 100 * time.Millisecond
+	// ConsulMaxWaitTime defines the maximum Consul wait time before treat it as timeout error.
+	ConsulMaxWaitTime = 5 * time.Second
+
+	// ConsulWaitTimeInterval defines the wait interval for node servers become available.
+	ConsulWaitTimeInterval = 100 * time.Millisecond
 )
 
 var (
@@ -48,8 +51,8 @@ type Consul struct {
 	Balancer balancer.Balancer
 }
 
-// NewClient returns an implementation of the Client interface expecting a fully
-// setup Consul Client.
+// New creates a new Consul provider middleware, implementing a Consul client that will
+// ask to Consul servers.
 func New(config *Config) *Consul {
 	c := &Consul{Config: config, Retrier: DefaultRetrier, Balancer: DefaultBalancer}
 	c.Start() // starts the server discovery background job
@@ -122,9 +125,9 @@ func (c *Consul) updateInterval(interval time.Duration) {
 func (c *Consul) GetNodes() ([]string, error) {
 	// Wait until Consul nodes are available.
 	// TODO: consider using a custom channel or WaitGroup
-	var loops int
+	var loops int64
 	for {
-		if loops > 50 { // Stop after 5 seconds. This should be configurable
+		if (loops * int64(ConsulWaitTimeInterval)) > int64(ConsulMaxWaitTime) {
 			return nil, ErrDiscoveryTimeout
 		}
 
@@ -136,7 +139,7 @@ func (c *Consul) GetNodes() ([]string, error) {
 
 		loops++
 		c.RUnlock()
-		time.Sleep(DefaultWaitInterval)
+		time.Sleep(ConsulWaitTimeInterval)
 	}
 
 	c.RLock()

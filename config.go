@@ -34,12 +34,12 @@ type Config struct {
 	// which overrides the agent's default token.
 	Token string
 
-	// HttpClient is the client to use. Default will be
+	// HTTPClient is the client to use. Default will be
 	// used if not provided.
-	HttpClient *http.Client
+	HTTPClient *http.Client
 
-	// HttpAuth is the auth info to use for http access.
-	HttpAuth *consul.HttpBasicAuth
+	// HTTPAuth is the auth info to use for http access.
+	HTTPAuth *consul.HttpBasicAuth
 
 	// WaitTime limits how long a Watch will block. If not provided,
 	// the agent default values will be used.
@@ -83,11 +83,11 @@ func (c *Config) newConsulConfig(u *url.URL) *consul.Config {
 	if c.Datacenter != "" {
 		config.Datacenter = c.Datacenter
 	}
-	if c.HttpClient != nil {
-		config.HttpClient = c.HttpClient
+	if c.HTTPClient != nil {
+		config.HttpClient = c.HTTPClient
 	}
-	if c.HttpAuth != nil {
-		config.HttpAuth = c.HttpAuth
+	if c.HTTPAuth != nil {
+		config.HttpAuth = c.HTTPAuth
 	}
 	if c.WaitTime != 0 {
 		config.WaitTime = c.WaitTime

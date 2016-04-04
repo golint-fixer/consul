@@ -1,5 +1,3 @@
-// Package consul implements a high-level wrapper Consul HTTP client for easy service discovery.
-// Provides additional features, such as time based lookups and retry policy.
 package consul
 
 import consul "github.com/hashicorp/consul/api"

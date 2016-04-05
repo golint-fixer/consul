@@ -134,7 +134,7 @@ func (c *Consul) GetNodes() ([]string, error) {
 	// Wait until Consul nodes are available.
 	// TODO: consider using a custom channel or WaitGroup
 	var loops int64
-	for _ = range time.NewTicker(ConsulWaitTimeInterval).C {
+	for range time.NewTicker(ConsulWaitTimeInterval).C {
 		if (loops * int64(ConsulWaitTimeInterval)) > int64(ConsulMaxWaitTime) {
 			return nil, ErrDiscoveryTimeout
 		}

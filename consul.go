@@ -134,10 +134,11 @@ func (c *Consul) GetNodes() ([]string, error) {
 	// Wait until Consul nodes are available.
 	// TODO: consider using a custom channel or WaitGroup
 	var loops int64
-	for {
+	for _ = range time.NewTicker(ConsulWaitTimeInterval).C {
 		if (loops * int64(ConsulWaitTimeInterval)) > int64(ConsulMaxWaitTime) {
 			return nil, ErrDiscoveryTimeout
 		}
+		loops++
 
 		c.RLock()
 		if len(c.nodes) > 0 {
@@ -145,9 +146,6 @@ func (c *Consul) GetNodes() ([]string, error) {
 			break
 		}
 		c.RUnlock()
-
-		loops++
-		time.Sleep(ConsulWaitTimeInterval)
 	}
 
 	c.RLock()

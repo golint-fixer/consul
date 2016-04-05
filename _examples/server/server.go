@@ -6,8 +6,6 @@ import (
 	"gopkg.in/vinxi/forward.v0"
 	"gopkg.in/vinxi/log.v0"
 	"gopkg.in/vinxi/vinxi.v0"
-	"net/http"
-	"os"
 )
 
 const port = 3100

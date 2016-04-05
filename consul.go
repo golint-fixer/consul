@@ -34,6 +34,9 @@ type Consul struct {
 	// Mutex provides a struct mutex to prevent data races.
 	sync.RWMutex
 
+	// started stores if the Consul discovery goroutine has been started.
+	started bool
+
 	// quit is used internally to open/close the Consul servers update goroutine.
 	quit chan bool
 
@@ -54,9 +57,7 @@ type Consul struct {
 // New creates a new Consul provider middleware, implementing a Consul client that will
 // ask to Consul servers.
 func New(config *Config) *Consul {
-	c := &Consul{Config: config, Retrier: DefaultRetrier, Balancer: DefaultBalancer}
-	c.Start() // starts the server discovery background job
-	return c
+	return &Consul{Config: config, Retrier: DefaultRetrier, Balancer: DefaultBalancer}
 }
 
 // nextConsulServer returns the next available server based on the current iteration index.
@@ -98,6 +99,11 @@ func (c *Consul) Stop() {
 
 // Start starts the Consul servers update interval goroutine.
 func (c *Consul) Start() {
+	c.RLock()
+	if c.started {
+		return
+	}
+	c.RUnlock()
 	go c.updateInterval(c.Config.RefreshTime)
 }
 
@@ -109,13 +115,12 @@ func (c *Consul) updateInterval(interval time.Duration) {
 			return
 		default:
 			nodes, err := c.UpdateNodes()
-			if err != nil || len(nodes) == 0 {
-				// TODO: handle error
+			// TODO: handle error
+			if err == nil && len(nodes) > 0 {
+				c.Lock()
+				c.nodes = nodes
+				c.Unlock()
 			}
-
-			c.Lock()
-			c.nodes = nodes
-			c.Unlock()
 			time.Sleep(interval)
 		}
 	}
@@ -123,6 +128,9 @@ func (c *Consul) updateInterval(interval time.Duration) {
 
 // GetNodes returns a list of server nodes hostnames for the configured service.
 func (c *Consul) GetNodes() ([]string, error) {
+	// Start the Consul background fetcher, if stopped
+	c.Start()
+
 	// Wait until Consul nodes are available.
 	// TODO: consider using a custom channel or WaitGroup
 	var loops int64
@@ -136,9 +144,9 @@ func (c *Consul) GetNodes() ([]string, error) {
 			c.RUnlock()
 			break
 		}
+		c.RUnlock()
 
 		loops++
-		c.RUnlock()
 		time.Sleep(ConsulWaitTimeInterval)
 	}
 

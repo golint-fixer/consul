@@ -4,18 +4,21 @@ import (
 	"fmt"
 	"gopkg.in/vinxi/consul.v0"
 	"gopkg.in/vinxi/forward.v0"
+	"gopkg.in/vinxi/log.v0"
 	"gopkg.in/vinxi/vinxi.v0"
+	"net/http"
+	"os"
 )
 
 const port = 3100
 
 func main() {
-	// Create the Consul client
-	cc := consul.New(consul.NewConfig("web", "http://demo.consul.io"))
-
 	// Create a new vinxi proxy
 	vs := vinxi.NewServer(vinxi.ServerOptions{Port: port})
-	vs.Use(cc)
+	vs.Use(log.Default)
+
+	// Create and attach Consul client
+	vs.Use(consul.New(consul.NewConfig("web", "http://demo.consul.io")))
 
 	fw, _ := forward.New(forward.PassHostHeader(true))
 	vs.UseFinalHandler(fw)

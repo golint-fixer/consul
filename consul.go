@@ -4,7 +4,6 @@ package consul
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -29,9 +28,10 @@ var (
 	ErrDiscoveryTimeout = errors.New("consul: cannot discover servers due to timeout")
 )
 
-// Consul is a wrapper around the Consul API.
+// Consul is a wrapper around the Consul API for convenience with additional capabilities.
+// Service discoverability will be performed in background.
 type Consul struct {
-	// Mutex provides a struct mutex to prevent data races.
+	// RWMutex provides a struct mutex to prevent data races.
 	sync.RWMutex
 
 	// started stores if the Consul discovery goroutine has been started.
@@ -88,8 +88,7 @@ func (c *Consul) UpdateNodes() ([]string, error) {
 		return err
 	})
 
-	// TODO: use custom nodes map function
-	return mapNodes(entries), err
+	return c.Config.Mapper(entries), err
 }
 
 // Stop stops the Consul servers update interval goroutine.
@@ -132,7 +131,6 @@ func (c *Consul) GetNodes() ([]string, error) {
 	c.Start()
 
 	// Wait until Consul nodes are available.
-	// TODO: consider using a custom channel or WaitGroup
 	var loops int64
 	for range time.NewTicker(ConsulWaitTimeInterval).C {
 		if (loops * int64(ConsulWaitTimeInterval)) > int64(ConsulMaxWaitTime) {
@@ -168,7 +166,7 @@ func (c *Consul) HandleHTTP(w http.ResponseWriter, r *http.Request, h http.Handl
 		return
 	}
 
-	// Retrieve latest service server nodes
+	// Retrieve latest service server from Consul
 	nodes, err := c.GetNodes()
 	if err != nil || len(nodes) == 0 {
 		w.WriteHeader(http.StatusBadGateway)
@@ -176,7 +174,7 @@ func (c *Consul) HandleHTTP(w http.ResponseWriter, r *http.Request, h http.Handl
 		return
 	}
 
-	// Balance traffic using the configured balancer
+	// Balance traffic using the configured balancer, if enabled
 	target, err := c.getTargetHost(nodes)
 	if err != nil {
 		h.ServeHTTP(w, r)
@@ -188,21 +186,4 @@ func (c *Consul) HandleHTTP(w http.ResponseWriter, r *http.Request, h http.Handl
 	r.URL.Host = target
 
 	h.ServeHTTP(w, r)
-}
-
-// mapNodes maps the Consul specific service entry into a string hostname.
-func mapNodes(entries []*consul.ServiceEntry) []string {
-	instances := make([]string, len(entries))
-
-	for i, entry := range entries {
-		addr := entry.Node.Address
-
-		if entry.Service.Address != "" {
-			addr = entry.Service.Address
-		}
-
-		instances[i] = fmt.Sprintf("%s:%d", addr, entry.Service.Port)
-	}
-
-	return instances
 }

@@ -34,6 +34,9 @@ type Consul struct {
 	// RWMutex provides a struct mutex to prevent data races.
 	sync.RWMutex
 
+	// ms synchronizes the access to started field.
+	ms sync.Mutex
+
 	// started stores if the Consul discovery goroutine has been started.
 	started bool
 
@@ -94,15 +97,18 @@ func (c *Consul) UpdateNodes() ([]string, error) {
 // Stop stops the Consul servers update interval goroutine.
 func (c *Consul) Stop() {
 	close(c.quit)
+	c.ms.Lock()
+	c.started = false
+	c.ms.Unlock()
 }
 
 // Start starts the Consul servers update interval goroutine.
 func (c *Consul) Start() {
-	c.RLock()
+	c.ms.Lock()
 	if c.started {
 		return
 	}
-	c.RUnlock()
+	c.ms.Unlock()
 	go c.updateInterval(c.Config.RefreshTime)
 }
 

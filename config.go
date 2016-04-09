@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -48,12 +49,17 @@ type Config struct {
 	// RefreshTime defines the Consul server refresh how long a Watch will block. If not provided,
 	// the agent default values will be used.
 	RefreshTime time.Duration
+
+	// Mapper stores the service entry specific map function.
+	// Useful to validate, normalize or filter service instances.
+	// Defaults to MapConsulEntries.
+	Mapper func([]*consul.ServiceEntry) []string
 }
 
 // NewConfig creates a new Consul client config preconfigured for
 // the given Consul service and a list of Consul servers.
 func NewConfig(service string, servers ...string) *Config {
-	c := &Config{Service: service, RefreshTime: DefaultRefreshTime}
+	c := &Config{Service: service, RefreshTime: DefaultRefreshTime, Mapper: MapConsulEntries}
 	c.SetServer(servers...)
 	return c
 }
@@ -97,4 +103,22 @@ func (c *Config) newConsulConfig(u *url.URL) *consul.Config {
 	}
 
 	return config
+}
+
+// MapConsulEntries maps the Consul specific service entry struct
+// into a string hostname + port scheme.
+func MapConsulEntries(entries []*consul.ServiceEntry) []string {
+	instances := make([]string, len(entries))
+
+	for i, entry := range entries {
+		addr := entry.Node.Address
+
+		if entry.Service.Address != "" {
+			addr = entry.Service.Address
+		}
+
+		instances[i] = fmt.Sprintf("%s:%d", addr, entry.Service.Port)
+	}
+
+	return instances
 }

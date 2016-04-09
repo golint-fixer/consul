@@ -1,8 +1,10 @@
 package consul
 
 import (
-	"github.com/nbio/st"
 	"testing"
+
+	consul "github.com/hashicorp/consul/api"
+	"github.com/nbio/st"
 )
 
 func TestConfig(t *testing.T) {
@@ -27,4 +29,13 @@ func TestConfig(t *testing.T) {
 	bar := config.Instances[0]
 	st.Expect(t, bar.Token, "")
 	st.Expect(t, bar.Datacenter, "")
+}
+
+func TestMapConsulEntries(t *testing.T) {
+	service := &consul.ServiceEntry{
+		Node:    &consul.Node{Node: "foo", Address: "127.0.0.1"},
+		Service: &consul.AgentService{Service: "foo", Port: 80},
+	}
+	list := []*consul.ServiceEntry{service}
+	st.Expect(t, MapConsulEntries(list), []string{"127.0.0.1:80"})
 }

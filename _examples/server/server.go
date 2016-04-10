@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/vinxi/apachelog.v0"
 	"gopkg.in/vinxi/consul.v0"
 	"gopkg.in/vinxi/forward.v0"
-	"gopkg.in/vinxi/log.v0"
 	"gopkg.in/vinxi/vinxi.v0"
 )
 
@@ -13,7 +13,7 @@ const port = 3100
 func main() {
 	// Create a new vinxi proxy
 	vs := vinxi.NewServer(vinxi.ServerOptions{Port: port})
-	vs.Use(log.Default)
+	vs.Use(apachelog.Default)
 
 	// Create and attach Consul client
 	vs.Use(consul.New(consul.NewConfig("web", "http://demo.consul.io")))
